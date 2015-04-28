@@ -1,0 +1,467 @@
+<html>
+<head>
+<!--
+/**
+ * $Project: ClassyGMaps $
+ *
+ * This file copyright (C) 2015  Barry Hunter (geo@barryhunter.co.uk)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ */
+-->
+<title>ClassyGMap</title>
+<script src="http://maps.google.com/maps/api/js?sensor=false&amp;libraries=weather,panoramio,visualization,places" type="text/javascript"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<style type="text/css">
+ *, *:before, *:after {
+  -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+ }
+
+  html, body {
+     width:100%;
+     height:100%;
+     margin:0;
+     padding:0;
+     overflow:hidden;
+  }
+	#sv_canvas {
+    position: absolute;
+    left: 200px;
+    right: 0;
+    top: 60px;
+    bottom:50%;
+    display:none;
+	}
+	#map_canvas {
+    position: absolute;
+    left: 200px;
+    right: 0;
+    top: 60px;
+    bottom: 0;
+	}
+	div#map_canvas.sv-open {
+		top: 50%;
+	}
+	form#topbar {
+		position: absolute;
+		top:0;
+		left:0;
+		width:100%;
+		height:60px;
+		padding:3px;
+	}
+	form#topbar input {
+		font-size:1.5em;
+	}
+	form.sidebar {
+		position: absolute;
+		width:200px;
+    height:100%;
+    top:60px; left:0;
+    padding:2px;
+    overflow:auto;
+    font-family:Georgia;
+    color:brown;
+ 	}
+  form.sidebar span {
+    font-size:0.8em;
+  }
+  form#sidebar2 label {
+  	float:left;
+  	width:40px;
+  }
+  form#sidebar2 input[type=text] {
+		width:140px;
+	}
+  
+
+</style>
+<script type="text/javascript">
+function showSidebar(num) {
+	document.getElementById('sidebar1').style.display=(num==1)?'':'none';
+	document.getElementById('sidebar2').style.display=(num==2)?'':'none';
+	document.getElementById('sidebar3').style.display=(num==3)?'':'none';
+}
+var map;
+var geocoder;
+var directionsDisplay;
+var directionsService;
+var searchBox;
+var panorama;
+var layers = {};
+var markers = [];
+var MAPTYPE_FEW = 'few-labels';
+var MAPTYPE_NO = 'no-labels';
+
+function initialize() {
+
+	var start_location = new google.maps.LatLng(42.345573,-71.098326);
+	var mapOptions = {
+		center: start_location,
+		zoom: 3,
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    mapTypeControl: true,
+    mapTypeControlOptions: {
+       mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN, MAPTYPE_FEW, MAPTYPE_NO, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID],
+       style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+    },
+		streetViewControl: true
+	};
+
+	map = new google.maps.Map(
+		document.getElementById("map_canvas"),
+		mapOptions
+	);
+
+  var mapTypeFew = new google.maps.StyledMapType([  {
+    featureType: "administrative.country",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }  ],  { name: "No Countries" });
+  map.mapTypes.set(MAPTYPE_FEW, mapTypeFew);
+  map.setMapTypeId(MAPTYPE_FEW);
+
+  var mapTypeNo = new google.maps.StyledMapType( [  {
+    featureType: "all",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }  ], { name: "No Labels" });
+  map.mapTypes.set(MAPTYPE_NO, mapTypeNo);
+  
+	geocoder = new google.maps.Geocoder();
+
+	directionsService = new google.maps.DirectionsService();
+	directionsDisplay = new google.maps.DirectionsRenderer({draggable: true});
+	directionsDisplay.setMap(map);
+  directionsDisplay.setPanel(document.getElementById("directionsPanel"));
+  
+  google.maps.event.addListener(directionsDisplay, 'directions_changed', function() {
+    computeTotalDistance(directionsDisplay.directions);
+  });
+
+  searchBox = new google.maps.places.SearchBox(document.getElementById('searchbox'));
+
+  google.maps.event.addListener(map, 'bounds_changed', function() {
+    var bounds = map.getBounds();
+    searchBox.setBounds(bounds);
+  });
+  google.maps.event.addListener(searchBox, 'places_changed', searchPlaces);
+
+	panorama = new google.maps.StreetViewPanorama(document.getElementById('sv_canvas'),{enableCloseButton:true, imageDateControl: true});
+	map.setStreetView(panorama);
+
+  var pegman = false;
+  google.maps.event.addListener(panorama, 'closeclick', function() {
+  	pegman = false; //closing, triggers visible_changed, we need to stop that one. idle after the resize event will set it back again :)
+  	$('#sv_canvas').hide();
+  	$('#map_canvas').removeClass('sv-open');
+  	google.maps.event.trigger(map, 'resize');
+  });
+  
+  google.maps.event.addListener(map, 'idle', function(event) {
+    pegman=true;
+  });
+  
+  google.maps.event.addListener(panorama, 'visible_changed', function() {
+    //visible_changed is called once, before during initialization. we only want the second one, which is 
+    if (pegman) {
+      $('#sv_canvas').show();
+      $('#map_canvas').addClass('sv-open');
+      
+			google.maps.event.trigger(panorama, 'resize');
+			google.maps.event.trigger(map, 'resize');  
+    }
+  });
+ 
+	if (location.search.length>2) {
+		bits = location.search.replace(/^\?/,'').split('&');
+		for(q=0;q<bits.length;q++) {
+			parts = bits[q].split('=',2);
+			if (parts[0] == 'q') {
+				if (parts[1].search(/http/) === 0) {
+					addOverlay(parts[1]);
+					
+				}
+				document.getElementById('searchbox').value = parts[1];
+			}
+		}
+  }
+
+}
+
+function searchPlaces() {
+    var places = searchBox.getPlaces();
+
+    if (places.length == 0) {
+      return;
+    }
+    for (var i = 0, marker; marker = markers[i]; i++) {
+      marker.setMap(null);
+    }
+
+    // For each place, get the icon, place name, and location.
+    markers = [];
+    var bounds = new google.maps.LatLngBounds();
+    for (var i = 0, place; place = places[i]; i++) {
+      var image = {
+        url: place.icon,
+        size: new google.maps.Size(71, 71),
+        origin: new google.maps.Point(0, 0),
+        anchor: new google.maps.Point(17, 34),
+        scaledSize: new google.maps.Size(25, 25)
+      };
+
+      // Create a marker for each place.
+      var marker = new google.maps.Marker({
+        map: map,
+        icon: image,
+        title: place.name,
+        position: place.geometry.location
+      });
+
+      markers.push(marker);
+
+      bounds.extend(place.geometry.location);
+    }
+
+    map.fitBounds(bounds);
+  }
+
+function get_directions() {
+  var request = {
+      origin: document.getElementById('saddr').value,
+      destination: document.getElementById('daddr').value,
+      travelMode: google.maps.TravelMode[document.getElementById('mode').value]
+  };
+  if (document.getElementById('via1').value.length>0) {
+  	request.waypoints = [document.getElementById('via1').value];
+  }
+	directionsService.route(request, function(response, status) {
+    if (status == google.maps.DirectionsStatus.OK) {
+      directionsDisplay.setDirections(response);
+    }
+  });
+  return false;
+}
+
+function computeTotalDistance(result) {
+  var total = 0;
+  var myroute = result.routes[0];
+  for (i = 0; i < myroute.legs.length; i++) {
+    total += myroute.legs[i].distance.value;
+  }
+  total = total / 1000.
+  //document.getElementById("total").innerHTML = total + " km";
+}
+
+function geocode_location() {
+	var address = document.getElementById("searchbox").value;
+	
+	if (address.search(/http/) === 0) {
+		addOverlay(address);
+		showSidebar(3);
+	} else {
+    geocoder.geocode( { 'address': address}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+        map.setCenter(results[0].geometry.location);
+        var marker = new google.maps.Marker({
+            map: map, 
+            position: results[0].geometry.location
+        });
+      } else {
+        alert("Geocode was not successful for the following reason: " + status);
+      }
+    });
+  }
+  
+	return false;
+}
+function setControl(that,name) {
+  var options = {};
+  options[name] = that.checked;
+  if (that.checked && name == 'overviewMapControl') {
+    options['overviewMapControlOptions'] = {opened:true};
+  }
+  map.setOptions(options);
+
+}
+function setLayer(that,name,autozoom) {
+  switch(name) {
+    case 'TrafficLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.TrafficLayer();
+      break;
+    case 'TransitLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.TransitLayer();
+      break;
+    case 'BicyclingLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.BicyclingLayer();
+      break;
+    case 'WeatherLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.weather.WeatherLayer();
+      break;
+    case 'CloudLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.weather.CloudLayer();
+      break;
+    case 'StreetViewCoverageLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.StreetViewCoverageLayer();
+      break;
+    case 'PanoramioLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.panoramio.PanoramioLayer();
+      break;
+    case 'WebCamLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.visualization.MapsEngineLayer({layerId: '10446176163891957399-09362451985983837383', clickable: true, suppressInfoWindows: false});
+      break;
+    default:
+      if (!layers[name]) {
+        autozoom = autozoom?false:true;
+        layers[name] = new google.maps.KmlLayer(name,{preserveViewport:autozoom});
+      }
+      break;    
+  }
+  layers[name].setMap(that.checked?map:null);
+}
+var overlay_counter = 0;
+function addOverlay(url) {
+  if (!url)
+		url = prompt("Enter a My Maps URL, or a direct link to a KML/KMZ file");
+
+  if (url) {
+    var name = "KML File";
+    if (m = url.match(/mapsengine\.google\.com\/map\/.*mid=([\w\.-]+)/)) {
+      url = "https://mapsengine.google.com/map/kml?mid="+m[1];
+      name = "Maps-Engine Map"; //todo how to autofill?
+
+    } else if (m = url.match(/\.google\.([\w\.]+)\/maps\/d\/.*mid=([\w\.-]+)/)) {
+      url = "https://www.google.com/maps/d/kml?mid="+m[2];
+      name = "My-Maps Map"; //todo how to autofill?
+
+    } else if (m = url.match(/\.google\..*\/maps.*msid=([\w\.-]+)/)) {
+      url = "https://maps.google.com/maps/ms?authuser=0&vps=2&ie=UTF8&msa=0&output=kml&msid="+m[1];
+      name = "My-Maps Map"; //todo how to autofill?
+    }
+
+    $('#overlays').append('<input type="checkbox" name="overlay[]" value="" id="overlay_'+overlay_counter+
+      '" onclick="setLayer(this,\''+url+'\')" checked/><label for="overlay_'+overlay_counter+'" title="'+url+'">'+name+'</label><br/>');
+    setLayer({checked:true},url,true);
+    overlay_counter++;
+  }
+  
+}
+</script>
+</head>
+<body onload="initialize()">
+  <form id="topbar" onsubmit="return geocode_location()">
+		<div style="float:left;width:270px;font-size:3em;">
+			ClassyGMap
+		</div>
+		<div style="float:left;">
+  		<input type="text" id="searchbox" placeholder="search here (or enter a kml url)" size=40/>
+      <input type="submit" value="Search"/><br>
+      <a href="#" onclick="return showSidebar(1);">Search</a> | <a href="#" onclick="return showSidebar(2);">Directions</a> | <a href="#" onclick="return showSidebar(3);">Options</a>
+    </div>
+  </form>
+  <form class="sidebar" id="sidebar1" style="display:none">
+    This page is only a prototype, much more still to do, to recreate a good Classic Maps experience
+    <h3>TODO!</h3>
+    <ul>
+    	<li>Split screen view for Streetview
+    	<li>Access Streetview from directions
+    	<li>Printing? 
+    	<li>Link to this page
+    	<li>More options for directions
+    	<li>Display search results in (this!) sidebar
+    	<li>Multiple search results/directions etc at once
+    	<li>Paging for search results
+    	<li>Handle coordinates in the search box
+    	<li>Display an approriate title when open a KML file
+    	<li>Handle custom labels for placemarks
+    	<li>Possibly more basemap options
+    	<li>Measure line tool
+    </ul>
+    Done:
+    <ul>
+    	<li>Access 45d imagry
+    	<li>Draggable Directions
+    	<li>Load KML files (inc My Maps)
+    	<li>Access photos layer
+    	<li>Toggle labels (in both map and satalite modes!)
+    </ul>
+  </form>
+  <form class="sidebar" onsubmit="return get_directions()" id="sidebar2" style="display:none">
+    <h3>Directions</h3>
+    <label for="saddr">From: </label><input type=text name="saddr" id="saddr"><br>
+    <span><label for="via1">Via: </label><input type=text name="via1" id="via1"><br></span>
+    <label for="daddr">To: </label><input type=text name="daddr" id="daddr"><br>
+    <select id="mode" onchange="get_directions();">
+		  <option value="DRIVING">Driving</option>
+		  <option value="WALKING">Walking</option>
+		  <option value="BICYCLING">Bicycling</option>
+		  <option value="TRANSIT">Transit</option>
+		</select>
+    <input type="submit" value="Get Directions">
+    
+    <div id="directionsPanel"></div>
+    
+  </form>
+  <form class="sidebar" id="sidebar3">
+   	<div style="padding:10px;background-color:#eee;">NOTE: This map is only a prototype, to explore the feasiblity of recreating Classic Google Maps. Lots of features dont work right yet.</div>
+   
+    <h3>Overlays</h3>
+    <div id="overlays"></div>
+    <span><a href="#" onclick="addOverlay();return false"/>Add Overlay</a></span>
+    <h3>Layers</h3>
+    <input type="checkbox" name="layer[]" value="" id="layer_traffic" onclick="setLayer(this,'TrafficLayer')"/><label for="layer_traffic">Traffic</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_transit" onclick="setLayer(this,'TransitLayer')"/><label for="layer_transit">Transit</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_bicycle" onclick="setLayer(this,'BicyclingLayer')"/><label for="layer_bicycle">Bicycle</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_weather" onclick="setLayer(this,'WeatherLayer')"/><label for="layer_weather">Weather</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_clouds" onclick="setLayer(this,'CloudLayer')"/><label for="layer_cloud">Clouds</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_svcover" onclick="setLayer(this,'StreetViewCoverageLayer')"/><label for="layer_svcover">Street View Coverage</label><br/>
+    <input type="checkbox" name="layer[]" value="" id="layer_panoramio" onclick="setLayer(this,'PanoramioLayer')"/><label for="layer_panoramio">Panoramio</label><br/>
+    <!--input type="checkbox" name="layer[]" value="" id="layer_webcams" onclick="setLayer(this,'WebCamLayer')"/><label for="layer_webcams">Webcams </label> <span>(<a href="http://maps.google.com/gallery/publisher?pub=Wecams.Travel&hl=en">Wecams.Travel</a>)</span><br/-->
+    <!--input type="checkbox" name="layer[]" value="" id="layer_"/><label for="layer_"></label><br/-->
+    <h3>Controls</h3>
+    <input type="checkbox" name="control[]" value="" id="control_" onclick="setControl(this,'streetViewControl')" checked/><label for="control_">Street View (Pegman)</label><br/>
+    <input type="checkbox" name="control[]" value="" id="control_" onclick="setControl(this,'scaleControl')"/><label for="control_">Scale Bar</label><br/>
+    <input type="checkbox" name="control[]" value="" id="control_" onclick="setControl(this,'panControl')" checked/><label for="control_">Pan Contrl</label><br/>
+    <input type="checkbox" name="control[]" value="" id="control_" onclick="setControl(this,'zoomControl')" checked/><label for="control_">Zoom Control</label><br/>
+    <input type="checkbox" name="control[]" value="" id="control_" onclick="setControl(this,'overviewMapControl')"/><label for="control_">OverView Map</label><br/>
+
+<!--
+    <h3>BaseMap</h3>
+    <select name="maptype">
+      <option value="">Road Map</option>
+      <option value="">Road Map - No Labels</option>
+      <option value="">Terrain</option>
+      <option value="">Terrain - No Labels</option>
+      <option value="">Satallite</option>
+      <option value="">Satallite - No Labels</option>
+     </select> -->
+  </form>
+  <div id="sv_canvas"></div>
+  <div id="map_canvas"></div>
+</body>
+</html>
