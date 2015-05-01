@@ -190,15 +190,41 @@ function initialize() {
   });
  
 	if (location.search.length>2) {
-		bits = location.search.replace(/^\?/,'').split('&');
-		for(q=0;q<bits.length;q++) {
-			parts = bits[q].split('=',2);
-			if (parts[0] == 'q') {
-				if (parts[1].search(/http/) === 0) {
-					addOverlay(parts[1]);
-					
+		pairs = location.search.replace(/^\?/,'').split('&');
+		for(q=0;q<pairs.length;q++) {
+                        var pos = pairs[q].indexOf("=");
+                        var argname = pairs[q].substring(0,pos).toLowerCase();
+                        var value = decodeURIComponent(pairs[q].substring(pos+1).replace(/\+/g,' '));
+
+			if (argname == 'q') {
+				document.getElementById('searchbox').value = value;
+				if (value.search(/http/) === 0) {
+					addOverlay(value);
+				} else {
+					setTimeout(function() {
+					  var bounds = map.getBounds();
+					  var request = {
+					    bounds: bounds,
+					    query: document.getElementById('searchbox').value
+					  };
+
+					  service = new google.maps.places.PlacesService(map);
+					  service.textSearch(request, displayPlaces);
+					}, 600);
 				}
-				document.getElementById('searchbox').value = parts[1];
+			} else if (argname == "ll") {
+                                var bits = value.split(',');
+                                mapCenter = new google.maps.LatLng(parseFloat(bits[0]),parseFloat(bits[1]));
+				map.setCenter(mapCenter);
+                        } else if (argname == "t") {
+                                if (value == "h") {mapType = google.maps.MapTypeId.HYBRID;}
+                                if (value == "r") {mapType = google.maps.MapTypeId.ROADMAP;}
+                                if (value == "t") {mapType = google.maps.MapTypeId.TERRAIN;}
+                                if (value == "s") {mapType = google.maps.MapTypeId.SATELLITE;}
+				if (mapType)
+					map.setMapTypeId(mapType);
+                        } else if (argname == "z") {
+				map.setZoom(parseInt(value,10));
 			}
 		}
   }
@@ -211,6 +237,14 @@ function searchPlaces() {
     if (places.length == 0) {
       return;
     }
+    displayPlaces(places);
+}
+
+function displayPlaces(places,status) {
+    if (status && status != google.maps.places.PlacesServiceStatus.OK) {
+	return false;
+    }
+
     for (var i = 0, marker; marker = markers[i]; i++) {
       marker.setMap(null);
     }
@@ -463,5 +497,9 @@ function addOverlay(url) {
   </form>
   <div id="sv_canvas"></div>
   <div id="map_canvas"></div>
+
+  <div style="position:absolute;top:0;right:0;width:120px">
+	<a href="https://github.com/barryhunter/classygmaps/">Fork on Github</a>
+  </div>
 </body>
 </html>
