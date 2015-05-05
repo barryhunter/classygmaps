@@ -104,6 +104,7 @@ var layers = {};
 var markers = [];
 var MAPTYPE_FEW = 'few-labels';
 var MAPTYPE_NO = 'no-labels';
+var MAPTYPE_ROAD = 'new-roads';
 
 function initialize() {
 
@@ -114,7 +115,7 @@ function initialize() {
     mapTypeId: google.maps.MapTypeId.ROADMAP,
     mapTypeControl: true,
     mapTypeControlOptions: {
-       mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN, MAPTYPE_FEW, MAPTYPE_NO, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID],
+       mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN, MAPTYPE_FEW, MAPTYPE_NO, MAPTYPE_ROAD, "ProperColours", google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID],
        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
     },
 		streetViewControl: true
@@ -125,7 +126,7 @@ function initialize() {
 		mapOptions
 	);
 
-  var mapTypeFew = new google.maps.StyledMapType([  {
+  var mapTypeFew = new google.maps.StyledMapType([ {
     featureType: "administrative.country",
     elementType: "labels",
     stylers: [
@@ -133,9 +134,9 @@ function initialize() {
     ]
   }  ],  { name: "No Countries" });
   map.mapTypes.set(MAPTYPE_FEW, mapTypeFew);
-  map.setMapTypeId(MAPTYPE_FEW);
+//  map.setMapTypeId(MAPTYPE_FEW);
 
-  var mapTypeNo = new google.maps.StyledMapType( [  {
+  var mapTypeNo = new google.maps.StyledMapType([ {
     featureType: "all",
     elementType: "labels",
     stylers: [
@@ -143,6 +144,37 @@ function initialize() {
     ]
   }  ], { name: "No Labels" });
   map.mapTypes.set(MAPTYPE_NO, mapTypeNo);
+
+  var mapTypeUK = new google.maps.StyledMapType([ {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [
+      { "color": "#42d727" }
+    ]
+  },{
+    "featureType": "road.highway.controlled_access",
+    "stylers": [
+      { "hue": "#006eff" }
+    ]
+  },{
+    "featureType": "road.arterial",
+    "elementType": "geometry.fill",
+    "stylers": [
+      { "color": "#ff9900" }
+    ]
+  }  ], { name: "UK Road colours" });
+  map.mapTypes.set(MAPTYPE_ROAD, mapTypeUK);
+
+//stolen from optimap.co.uk
+map.mapTypes.set("ProperColours", new google.maps.ImageMapType({
+	getTileUrl: function(coord, zoom) {
+			return "http://mt0.googleapis.com/vt?lyrs=m@230000000&src=apiv2&hl=en-US&x=" + coord.x + "&y=" + coord.y + "&z=" + zoom;
+		},
+		tileSize: new google.maps.Size(256, 256),
+		name: "Legacy Tiles",
+		maxZoom: 18
+}));
+
   
 	geocoder = new google.maps.Geocoder();
 
@@ -221,6 +253,7 @@ function initialize() {
                                 if (value == "r") {mapType = google.maps.MapTypeId.ROADMAP;}
                                 if (value == "t") {mapType = google.maps.MapTypeId.TERRAIN;}
                                 if (value == "s") {mapType = google.maps.MapTypeId.SATELLITE;}
+                                if (value == "u") {mapType = MAPTYPE_ROAD;}
 				if (mapType)
 					map.setMapTypeId(mapType);
                         } else if (argname == "z") {
