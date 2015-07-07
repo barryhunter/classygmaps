@@ -50,7 +50,7 @@
 		position:absolute;
 		top:0;
 		right:20px;
-		width:200px;
+		width:180px;
 	}
 	/*------------------------ */
 	body.sv-horz div#map_canvas.sv-open {
@@ -137,6 +137,14 @@
 	}
 	form#topbar input {
 		font-size:1.5em;
+	}
+	form#topbar .logo {
+		float:left;width:270px;font-size:3em;
+	}
+	@media (max-width: 860px) {
+		form#topbar .logo {
+			display:none;
+		}
 	}
 	form.sidebar {
 		position: absolute;
@@ -300,6 +308,14 @@ function initialize() {
 			google.maps.event.trigger(panorama, 'resize');
 			google.maps.event.trigger(map, 'resize');  
     }
+  });
+  
+  google.maps.event.addListener(panorama, 'position_changed', function() {
+  	var position = panorama.getPosition();
+  	var bounds = map.getBounds();
+  	if (!bounds.contains(position)) {
+  		map.setCenter(position);
+  	}
   });
  
 	if (location.search.length>2) {
@@ -578,7 +594,7 @@ function addOverlay(url) {
 </head>
 <body onload="initialize()" class="sv-horz">
   <form id="topbar" onsubmit="makeHash(); return runTextSearch()">
-		<div style="float:left;width:270px;font-size:3em;">
+		<div class="logo">
 			ClassyGMap
 		</div>
 		<div style="float:left;">
@@ -683,3 +699,6 @@ function addOverlay(url) {
   </div>
 </body>
 </html>
+<?
+
+include "_stats.inc.php";
