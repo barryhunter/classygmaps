@@ -679,13 +679,13 @@ function addOverlay(url) {
       <option value="">Road Map - No Labels</option>
       <option value="">Terrain</option>
       <option value="">Terrain - No Labels</option>
-      <option value="">Satallite</option>
-      <option value="">Satallite - No Labels</option>
+      <option value="">Satellite</option>
+      <option value="">Satellite - No Labels</option>
      </select> -->
   </form>
   <div id="sv_switch" style="display:none;"><select onchange="$('body').attr('class',this.value);$.localStorage('sv-split',this.value);google.maps.event.trigger(panorama, 'resize');google.maps.event.trigger(map, 'resize');">
-  	<option value="sv-horz" selected>Horizonatal Split</option>
-  	<option value="sv-less">Horizonatal Bigger</option>
+  	<option value="sv-horz" selected>Horizontal Split</option>
+  	<option value="sv-less">Horizontal Bigger</option>
   	<option value="sv-vert">Vertical Split</option>
   	<option value="sv-full">Full Screen</option>
   	<option value="sv-mini">MiniMap</option>
