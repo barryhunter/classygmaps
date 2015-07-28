@@ -4,7 +4,7 @@
 /**
  * $Project: ClassyGMaps $
  *
- * This file copyright (C) 2015  Barry Hunter (geo@barryhunter.co.uk)
+ * This file copyright (C) 2015  Barry Hunter (classygmaps@barryhunter.co.uk)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -73,6 +73,17 @@
     right: 0;
     top: 60px;
     bottom:25%;
+	}
+	/*------------------------ */
+	body.sv-more div#map_canvas.sv-open {
+		top: 33%;
+	}
+	body.sv-more #sv_canvas {
+    position: absolute;
+    left: 200px;
+    right: 0;
+    top: 60px;
+    bottom:67%;
 	}
 	/*------------------------ */
 	body.sv-vert .sidebar {
@@ -183,51 +194,26 @@ var searchBox;
 var panorama;
 var layers = {};
 var markers = [];
-var MAPTYPE_FEW = 'few-labels';
-var MAPTYPE_NO = 'no-labels';
-var MAPTYPE_ROAD = 'new-roads';
 var coordsActive = true;
 
-function initialize() {
-
-	var start_location = new google.maps.LatLng(42.345573,-71.098326);
-	var mapOptions = {
-		center: start_location,
-		zoom: 3,
-    mapTypeId: google.maps.MapTypeId.ROADMAP,
-    mapTypeControl: true,
-    mapTypeControlOptions: {
-       mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN, MAPTYPE_FEW, MAPTYPE_NO, MAPTYPE_ROAD, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID],
-       style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
-    },
-		streetViewControl: true
-	};
-
-	map = new google.maps.Map(
-		document.getElementById("map_canvas"),
-		mapOptions
-	);
-
-  var mapTypeFew = new google.maps.StyledMapType([ {
+var myStyles = {};
+//these styles are created by myself unless stated otherwise, and available for reuse under GPL
+myStyles['Standard'] = null;
+myStyles['No Countries'] = [ {
     featureType: "administrative.country",
     elementType: "labels",
     stylers: [
       { visibility: "off" }
     ]
-  }  ],  { name: "No Countries" });
-  map.mapTypes.set(MAPTYPE_FEW, mapTypeFew);
-//  map.setMapTypeId(MAPTYPE_FEW);
-
-  var mapTypeNo = new google.maps.StyledMapType([ {
+  }  ];
+myStyles['No Labels'] = [ {
     featureType: "all",
     elementType: "labels",
     stylers: [
       { visibility: "off" }
     ]
-  }  ], { name: "No Labels" });
-  map.mapTypes.set(MAPTYPE_NO, mapTypeNo);
-
-  var mapTypeUK = new google.maps.StyledMapType([ {
+  }  ];
+myStyles['UK Road Colours'] = [ {
     "featureType": "road.highway",
     "elementType": "geometry",
     "stylers": [
@@ -251,11 +237,430 @@ function initialize() {
       { "visibility": "on" },
       { "lightness": 100 }
     ]
-  }  ], { name: "UK Road colours" });
-  map.mapTypes.set(MAPTYPE_ROAD, mapTypeUK);
+  }  ];
+myStyles['De-Saturated'] = [
+  {
+    stylers: [
+      { hue: "#00ffe6" },
+      { saturation: -20 }
+    ]
+  },{
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [
+      { lightness: 100 },
+      { visibility: "simplified" }
+    ]
+  },{
+    featureType: "road",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }
+];
+myStyles['Just a Road Map'] = [
+    {
+        "featureType": "all",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.country",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.province",
+        "elementType": "labels.text",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    }
+];
+myStyles['Only Countries'] = [
+    {
+        "featureType": "all",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.country",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.province",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    }
+];
+//http://www.mapstylr.com/style/light-monochrome/
+myStyles['Light Monochrome'] = [
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            },
+            {
+                "hue": "#e9ebed"
+            },
+            {
+                "saturation": -78
+            },
+            {
+                "lightness": 67
+            }
+        ]
+    },
+    {
+        "featureType": "landscape",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            },
+            {
+                "hue": "#ffffff"
+            },
+            {
+                "saturation": -100
+            },
+            {
+                "lightness": 100
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            },
+            {
+                "hue": "#bbc0c4"
+            },
+            {
+                "saturation": -93
+            },
+            {
+                "lightness": 31
+            }
+        ]
+    },
+    {
+        "featureType": "poi",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            },
+            {
+                "hue": "#ffffff"
+            },
+            {
+                "saturation": -100
+            },
+            {
+                "lightness": 100
+            }
+        ]
+    },
+    {
+        "featureType": "road.local",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            },
+            {
+                "hue": "#e9ebed"
+            },
+            {
+                "saturation": -90
+            },
+            {
+                "lightness": -8
+            }
+        ]
+    },
+    {
+        "featureType": "transit",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            },
+            {
+                "hue": "#e9ebed"
+            },
+            {
+                "saturation": 10
+            },
+            {
+                "lightness": 69
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.locality",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            },
+            {
+                "hue": "#2c2e33"
+            },
+            {
+                "saturation": 7
+            },
+            {
+                "lightness": 19
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "labels",
+        "stylers": [
+            {
+                "visibility": "on"
+            },
+            {
+                "hue": "#bbc0c4"
+            },
+            {
+                "saturation": -93
+            },
+            {
+                "lightness": 31
+            }
+        ]
+    },
+    {
+        "featureType": "road.arterial",
+        "elementType": "labels",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            },
+            {
+                "hue": "#bbc0c4"
+            },
+            {
+                "saturation": -93
+            },
+            {
+                "lightness": -2
+            }
+        ]
+    }
+];
+//http://www.mapstylr.com/style/retro/
+myStyles['Retro'] = [
+    {
+        "featureType": "administrative",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            }
+        ]
+    },
+    {
+        "featureType": "poi",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "labels",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "transit",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "landscape",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "road.highway",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            }
+        ]
+    },
+    {
+        "featureType": "road.local",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "road.highway",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "color": "#84afa3"
+            },
+            {
+                "lightness": 52
+            }
+        ]
+    },
+    {
+        "featureType": "all",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": -17
+            },
+            {
+                "gamma": 0.36
+            }
+        ]
+    },
+    {
+        "featureType": "transit.line",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "color": "#3f518c"
+            }
+        ]
+    }
+];
+//myStyles[''] = ;
 
 
+$(function() {
+	$('body').keyup(function(e){
+			if(e.keyCode == 27){
+				if ($('#sv_canvas:visible').length) {
+					google.maps.event.trigger(panorama, 'closeclick');
+				}
+			}
+	});
+	$.each(myStyles,function(key,value) {
+		$('#mapstyle').append('<option value="'+key+'">'+key+'</option>');
+	});
+});
 
+function initialize() {
+
+	var start_location = new google.maps.LatLng(42.345573,-71.098326);
+	var mapOptions = {
+		center: start_location,
+		zoom: 3,
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    mapTypeControl: true,
+    mapTypeControlOptions: {
+       mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID],
+       style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR
+    },
+		streetViewControl: true
+	};
+
+	map = new google.maps.Map(
+		document.getElementById("map_canvas"),
+		mapOptions
+	);
 
   
 	geocoder = new google.maps.Geocoder();
@@ -282,6 +687,7 @@ function initialize() {
 
   var pegman = false;
   google.maps.event.addListener(panorama, 'closeclick', function() {
+    var position = map.getCenter();
   	pegman = false; //closing, triggers visible_changed, we need to stop that one. idle after the resize event will set it back again :)
   	$('#sv_canvas, #sv_switch').hide();
   	$('#map_canvas').removeClass('sv-open');
@@ -289,6 +695,7 @@ function initialize() {
   	if ($('#control_street').get(0).checked) 
     	setControl({checked:true},'streetViewControl');
   	google.maps.event.trigger(map, 'resize');
+  	map.setCenter(position);
   });
   
   google.maps.event.addListener(map, 'idle', function(event) {
@@ -307,9 +714,16 @@ function initialize() {
       
 			google.maps.event.trigger(panorama, 'resize');
 			google.maps.event.trigger(map, 'resize');  
+			if (panorama.getPosition()) {
+			
+			}
     }
   });
-  
+  google.maps.event.addListener(panorama, 'status_changed', function() {
+  	if (panorama.getStatus() != google.maps.StreetViewStatus.OK) {
+  		//google.maps.event.trigger(panorama, 'closeclick');
+  	}
+  });
   google.maps.event.addListener(panorama, 'position_changed', function() {
   	var position = panorama.getPosition();
   	var bounds = map.getBounds();
@@ -361,9 +775,6 @@ function processPairs(pairs) {
 			if (value == "r") {mapType = google.maps.MapTypeId.ROADMAP;}
 			if (value == "t") {mapType = google.maps.MapTypeId.TERRAIN;}
 			if (value == "s") {mapType = google.maps.MapTypeId.SATELLITE;}
-			if (value == "u") {mapType = MAPTYPE_ROAD;}
-			if (value == "p") {mapType = "ProperColours";}
-			if (value == "l") {mapType = "LacacyHybrid";}
 			if (mapType)
 				map.setMapTypeId(mapType);
 		} else if (argname == "z") {
@@ -658,8 +1069,8 @@ function addOverlay(url) {
     <input type="checkbox" name="layer[]" value="" id="layer_traffic" onclick="setLayer(this,'TrafficLayer')"/><label for="layer_traffic">Traffic</label><br/>
     <input type="checkbox" name="layer[]" value="" id="layer_transit" onclick="setLayer(this,'TransitLayer')"/><label for="layer_transit">Transit</label><br/>
     <input type="checkbox" name="layer[]" value="" id="layer_bicycle" onclick="setLayer(this,'BicyclingLayer')"/><label for="layer_bicycle">Bicycle</label><br/>
-    <input type="checkbox" name="layer[]" value="" id="layer_weather" onclick="setLayer(this,'WeatherLayer')"/><label for="layer_weather">Weather</label><br/>
-    <input type="checkbox" name="layer[]" value="" id="layer_clouds" onclick="setLayer(this,'CloudLayer')"/><label for="layer_cloud">Clouds</label><br/>
+    <!--input type="checkbox" name="layer[]" value="" id="layer_weather" onclick="setLayer(this,'WeatherLayer')"/><label for="layer_weather">Weather</label><br/-->
+    <!--input type="checkbox" name="layer[]" value="" id="layer_clouds" onclick="setLayer(this,'CloudLayer')"/><label for="layer_cloud">Clouds</label><br/-->
     <input type="checkbox" name="layer[]" value="" id="layer_svcover" onclick="setLayer(this,'StreetViewCoverageLayer')"/><label for="layer_svcover">Street View Coverage</label><br/>
     <!--input type="checkbox" name="layer[]" value="" id="layer_panoramio" onclick="setLayer(this,'PanoramioLayer')"/><label for="layer_panoramio">Panoramio</label><br/-->
     <!--input type="checkbox" name="layer[]" value="" id="layer_webcams" onclick="setLayer(this,'WebCamLayer')"/><label for="layer_webcams">Webcams </label> <span>(<a href="http://maps.google.com/gallery/publisher?pub=Wecams.Travel&hl=en">Wecams.Travel</a>)</span><br/-->
@@ -672,20 +1083,16 @@ function addOverlay(url) {
     <input type="checkbox" name="control[]" value="" id="control_type" onclick="setControl(this,'mapTypeControl')" checked/><label for="control_type">Map Type Control</label><br/>
     <input type="checkbox" name="control[]" value="" id="control_over" onclick="setControl(this,'overviewMapControl')"/><label for="control_over">OverView Map</label><br/>
 
-<!--
-    <h3>BaseMap</h3>
-    <select name="maptype">
-      <option value="">Road Map</option>
-      <option value="">Road Map - No Labels</option>
-      <option value="">Terrain</option>
-      <option value="">Terrain - No Labels</option>
-      <option value="">Satallite</option>
-      <option value="">Satallite - No Labels</option>
-     </select> -->
+
+    <h3>Map Style</h3>
+    <select name="mapstyle" id="mapstyle" onchange="map.setOptions({styles: myStyles[this.value]});">
+     </select><small style="font-size:0.8em"><br>
+	Want a different style? Create it in the <a href="http://gmaps-samples-v3.googlecode.com/svn/trunk/styledmaps/wizard/index.html" target="_blank">wizard</a>, and provide the JSON in a <a href="https://github.com/barryhunter/classygmaps/issues">new issue</a>.</small>
   </form>
-  <div id="sv_switch" style="display:none;"><select onchange="$('body').attr('class',this.value);$.localStorage('sv-split',this.value);google.maps.event.trigger(panorama, 'resize');google.maps.event.trigger(map, 'resize');">
+  <div id="sv_switch" style="display:none;"><select onchange="$('body').attr('class',this.value);$.localStorage('sv-split',this.value);google.maps.event.trigger(panorama, 'resize');google.maps.event.trigger(map, 'resize');google.maps.event.trigger(panorama, 'position_changed');">
   	<option value="sv-horz" selected>Horizonatal Split</option>
-  	<option value="sv-less">Horizonatal Bigger</option>
+  	<option value="sv-less">Horizonatal More SV</option>
+  	<option value="sv-more">Horizonatal More Map</option>
   	<option value="sv-vert">Vertical Split</option>
   	<option value="sv-full">Full Screen</option>
   	<option value="sv-mini">MiniMap</option>
@@ -699,6 +1106,3 @@ function addOverlay(url) {
   </div>
 </body>
 </html>
-<?
-
-include "_stats.inc.php";
