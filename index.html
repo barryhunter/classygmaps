@@ -199,20 +199,32 @@ var coordsActive = true;
 var myStyles = {};
 //these styles are created by myself unless stated otherwise, and available for reuse under GPL
 myStyles['Standard'] = null;
-myStyles['No Countries'] = [ {
-    featureType: "administrative.country",
-    elementType: "labels",
-    stylers: [
-      { visibility: "off" }
+myStyles['High Contrast Roads'] = [
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [
+      { "lightness": -49 }
     ]
-  }  ];
-myStyles['No Labels'] = [ {
-    featureType: "all",
-    elementType: "labels",
-    stylers: [
-      { visibility: "off" }
+  },{
+    "featureType": "road",
+    "elementType": "labels",
+    "stylers": [
+      { "gamma": 0.61 }
     ]
-  }  ];
+  },{
+    "elementType": "labels.icon",
+    "stylers": [
+      { "lightness": 30 }
+    ]
+  },{
+    "elementType": "labels",
+    "stylers": [
+      { "gamma": 0.51 },
+      { "weight": 6.3 }
+    ]
+  }
+];
 myStyles['UK Road Colours'] = [ {
     "featureType": "road.highway",
     "elementType": "geometry",
@@ -238,28 +250,7 @@ myStyles['UK Road Colours'] = [ {
       { "lightness": 100 }
     ]
   }  ];
-myStyles['De-Saturated'] = [
-  {
-    stylers: [
-      { hue: "#00ffe6" },
-      { saturation: -20 }
-    ]
-  },{
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [
-      { lightness: 100 },
-      { visibility: "simplified" }
-    ]
-  },{
-    featureType: "road",
-    elementType: "labels",
-    stylers: [
-      { visibility: "off" }
-    ]
-  }
-];
-myStyles['Just a Road Map'] = [
+myStyles['Simplified Road Map'] = [
     {
         "featureType": "all",
         "elementType": "all",
@@ -306,7 +297,21 @@ myStyles['Just a Road Map'] = [
         ]
     }
 ];
-myStyles['Only Countries'] = [
+myStyles['No Labels'] = [ {
+    featureType: "all",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }  ];
+myStyles['No Country Labels'] = [ {
+    featureType: "administrative.country",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }  ];
+myStyles['Country Boundaries Only'] = [
     {
         "featureType": "all",
         "elementType": "all",
@@ -626,6 +631,42 @@ myStyles['Retro'] = [
         ]
     }
 ];
+myStyles['Alternative Style'] = [
+  {
+    stylers: [
+      { hue: "#00ffe6" },
+      { saturation: -20 }
+    ]
+  },{
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [
+      { lightness: 100 },
+      { visibility: "simplified" }
+    ]
+  },{
+    featureType: "road",
+    elementType: "labels",
+    stylers: [
+      { visibility: "off" }
+    ]
+  }
+];
+myStyles['Highlight Rail Lines'] = [
+  {
+    "featureType": "transit.line",
+    "elementType": "geometry",
+    "stylers": [
+      { "lightness": -86 }
+    ]
+  },{
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [
+      { "visibility": "simplified" }
+    ]
+  }
+];
 //myStyles[''] = ;
 
 
@@ -777,6 +818,10 @@ function processPairs(pairs) {
 			if (value == "s") {mapType = google.maps.MapTypeId.SATELLITE;}
 			if (mapType)
 				map.setMapTypeId(mapType);
+		} else if (argname == 's') {
+			var ele = $('#mapstyle').get(0);
+			ele.selectedIndex = parseInt(value,10);
+			map.setOptions({styles: myStyles[ele.value]});
 		} else if (argname == "z") {
 			map.setZoom(parseInt(value,10));
 		}
@@ -790,6 +835,10 @@ function makeHash() {
 	bits.push("t="+map.getMapTypeId().substr(0,1));
 	if ($('#searchbox').val())
 		bits.push("q="+encodeURIComponent($('#searchbox').val()));
+	var idx = $('#mapstyle').get(0).selectedIndex;
+	if (idx > 0)
+		bits.push("s="+idx);
+
 	window.location.hash = '#'+bits.join('&');
 }
 
@@ -837,7 +886,10 @@ function displayPlaces(places,status) {
       bounds.extend(place.geometry.location);
     }
 
-    map.fitBounds(bounds);
+    if (places.length > 1)  
+	    map.fitBounds(bounds);
+    else
+	 map.panTo(bounds.getCenter());
   }
 
 function get_directions() {
@@ -961,6 +1013,10 @@ function setLayer(that,name,autozoom) {
       if (!layers[name])
         layers[name] = new google.maps.visualization.MapsEngineLayer({layerId: '10446176163891957399-09362451985983837383', clickable: true, suppressInfoWindows: false});
       break;
+    case 'USCountiesLayer': 
+      if (!layers[name])
+        layers[name] = new google.maps.visualization.MapsEngineLayer({layerId: '10446176163891957399-18413573117676362714-4', clickable: true, suppressInfoWindows: false});
+      break;
     default:
       if (!layers[name]) {
         autozoom = autozoom?false:true;
@@ -1009,7 +1065,7 @@ function addOverlay(url) {
 			ClassyGMap
 		</div>
 		<div style="float:left;">
-  		<input type="text" id="searchbox" placeholder="search here (or enter a kml url)" size=40/>
+  		<input type="search" name="q" id="searchbox" placeholder="search here (or enter a kml url)" size=40/>
       <input type="submit" value="Search"/><br>
 	<div style="float:right" id="coords"></div>
       <a href="#" onclick="return showSidebar(1);">Search</a> | <a href="#" onclick="return showSidebar(2);">Directions</a> | <a href="#" onclick="return showSidebar(3);">Options</a>
@@ -1025,7 +1081,8 @@ function addOverlay(url) {
     	<li>Load KML files (inc My Maps)
     	<li>Access photos layer (and others!)
         <li>UK Road Colour Emulation - bolder road colours
-    	<li>Toggle labels (in both map and satalite modes!)
+    	<li>Toggle labels (in both map and satellite modes!)
+    	<li>More basemap style options
     </ul>
     <h3>TODO!</h3>
     <ul>
@@ -1039,7 +1096,6 @@ function addOverlay(url) {
     	<li>Handle coordinates in the search box
     	<li>Display an approriate title when open a KML file
     	<li>Handle custom labels for placemarks
-    	<li>Possibly more basemap options
     	<li>Measure line tool
     </ul>
   </form>
@@ -1074,6 +1130,7 @@ function addOverlay(url) {
     <input type="checkbox" name="layer[]" value="" id="layer_svcover" onclick="setLayer(this,'StreetViewCoverageLayer')"/><label for="layer_svcover">Street View Coverage</label><br/>
     <!--input type="checkbox" name="layer[]" value="" id="layer_panoramio" onclick="setLayer(this,'PanoramioLayer')"/><label for="layer_panoramio">Panoramio</label><br/-->
     <!--input type="checkbox" name="layer[]" value="" id="layer_webcams" onclick="setLayer(this,'WebCamLayer')"/><label for="layer_webcams">Webcams </label> <span>(<a href="http://maps.google.com/gallery/publisher?pub=Wecams.Travel&hl=en">Wecams.Travel</a>)</span><br/-->
+    <input type="checkbox" name="layer[]" value="" id="layer_uscounties" onclick="setLayer(this,'USCountiesLayer')"/><label for="layer_uscounties">US Counties </label> <span>(<a href="https://mapsengine.google.com/10446176163891957399-05024755807944746507-4/mapview/">US Counties</a>)</span><br/>
     <!--input type="checkbox" name="layer[]" value="" id="layer_"/><label for="layer_"></label><br/-->
     <h3>Controls</h3>
     <input type="checkbox" name="control[]" value="" id="control_street" onclick="setControl(this,'streetViewControl')" checked/><label for="control_street">Street View (Pegman)</label><br/>
@@ -1090,7 +1147,7 @@ function addOverlay(url) {
 	Want a different style? Create it in the <a href="http://gmaps-samples-v3.googlecode.com/svn/trunk/styledmaps/wizard/index.html" target="_blank">wizard</a>, and provide the JSON in a <a href="https://github.com/barryhunter/classygmaps/issues">new issue</a>.</small>
   </form>
   <div id="sv_switch" style="display:none;"><select onchange="$('body').attr('class',this.value);$.localStorage('sv-split',this.value);google.maps.event.trigger(panorama, 'resize');google.maps.event.trigger(map, 'resize');google.maps.event.trigger(panorama, 'position_changed');">
-  	<option value="sv-horz" selected>Horizonatal Split</option>
+  	<option value="sv-horz" selected>Horizontal Split</option>
   	<option value="sv-less">Horizonatal More SV</option>
   	<option value="sv-more">Horizonatal More Map</option>
   	<option value="sv-vert">Vertical Split</option>
@@ -1104,5 +1161,6 @@ function addOverlay(url) {
   <div id="fork" style="position:absolute;top:0;right:0;width:120px">
 	<a href="https://github.com/barryhunter/classygmaps/">Fork on Github</a>
   </div>
+	<img style="display:none;" src="https://hitcount.me/hit.gif" />
 </body>
 </html>
